@@ -69,35 +69,34 @@ def vectorize_text(text, label):
 
 def build_model():
     """
-    ## Build a model
-
-    We choose a simple 1D convnet starting with an `Embedding` layer.
+    Build an RNN-based model to embed the input text as a sequence of vectors,
+    transform the sequence of embeddings into a single vector using a Bidirectional SimpleRNN,
+    and apply a feed-forward layer on that vector to obtain the label.
     """
-    # A integer input for vocab indices.
+    # A integer input for vocab indices (sequence of word indices).
     inputs = keras.Input(shape=(None,), dtype="int64")
 
-    # Next, we add a layer to map those vocab indices into a space of dimensionality
-    # 'embedding_dim'.
-    x = layers.Embedding(max_features, embedding_dim)(inputs)
-    x = layers.Dropout(0.5)(x)
+    # Step 1: Embed the input text as a sequence of vectors
+    x = layers.Embedding(max_features, embedding_dim)(inputs)  # embedding_dim = 16
+    x = layers.Dropout(0.5)(x)  # Dropout with rate 0.5 to prevent overfitting
 
-    # Conv1D + global max pooling
-    x = layers.Conv1D(128, 7, padding="valid", activation="relu", strides=3)(x)
-    x = layers.Conv1D(128, 7, padding="valid", activation="relu", strides=3)(x)
-    x = layers.GlobalMaxPooling1D()(x)
+    # Step 2: Transform the sequence of embeddings into a single vector using RNN
+    x = layers.Bidirectional(layers.SimpleRNN(64, activation="tanh"))(x)  # hidden_dim = 64, nonlinearity = tanh
 
-    # We add a vanilla hidden layer:
-    x = layers.Dense(128, activation="relu")(x)
-    x = layers.Dropout(0.5)(x)
+    # Step 3: Apply a feed-forward layer on that vector to obtain the label
+    x = layers.Dropout(0.5)(x)  # Dropout after RNN layer
+    predictions = layers.Dense(20, activation="softmax", name="predictions")(x)  # 20 output classes (Newsgroups)
 
-    # 20 possible output classes for the usenet dataset.
-    predictions = layers.Dense(20, activation="softmax", name="predictions")(x)
+    # Build the model
     model = keras.Model(inputs, predictions)
 
-    # Compile the model with binary crossentropy loss and an adam optimizer.
+    # Compile the model with sparse categorical crossentropy and Adam optimizer
     model.compile(
-        loss="sparse_categorical_crossentropy", optimizer="adam", metrics=["accuracy"]
+        loss="sparse_categorical_crossentropy", 
+        optimizer=keras.optimizers.Adam(learning_rate=0.001),  # learning_rate = 0.001
+        metrics=["accuracy"]
     )
+
     return model
 
 
@@ -120,7 +119,7 @@ def main():
 
     model = build_model()
 
-    epochs = 10
+    epochs = 20
     # Actually perform training.
     model.fit(train_ds, validation_data=val_ds, epochs=epochs)
 
