@@ -15,7 +15,6 @@ import keras
 import tensorflow as tf
 import numpy as np
 from keras import layers
-from keras.regularizers import l2
 
 ## Loading the "20newsgroups" dataset.
 def load_textfiles():
@@ -105,25 +104,19 @@ def build_LSTM():
     transform the sequence of embeddings into a single vector and apply a feed-forward layer on that vector to obtain the label.
     """
     # A integer input for vocab indices (sequence of word indices).
-    L2_p= 0.01
     inputs = keras.Input(shape=(None,), dtype="int64")
 
     # Step 1: Embed the input text as a sequence of vectors
     x = layers.Embedding(max_features, embedding_dim)(inputs)  # embedding_dim = 16
     x = layers.Dropout(0.1)(x)  # Dropout with rate 0.5 to prevent overfitting
 
-    # Step 2: Transform the sequence of embeddings into a single vector using RNN
-    x = layers.Bidirectional(layers.LSTM(32, return_sequences = False, activation="tanh", kernel_regularizer=l2(L2_p)))(x)  # hidden_dim = 64, nonlinearity = tanh
-    atten = layers.Dense(1, activation = "tanh")(x)
-    atten = layers.Flatten()(atten)
-    atten = layers.Activation('softmax')(atten)
-    atten = layers.Lambda(lambda x: keras.backend.squeeze(x, axis = -1))(atten)
-    atten = layers.Multiply()([x, atten])
-    x = layers.Flatten()(atten)
-    x = layers.Dense(32, activation = "tanh", kernel_regularizer=l2(L2_p))(x)
+    # Step 2: Transform the sequence of embeddings into a single vector using LSTM
+    x = layers.Bidirectional(layers.LSTM(32, return_sequences = False))(x)  # hidden_dim = 32
+    x = layers.Flatten()(x)
+    x = layers.Dense(32, activation = "tanh")(x)
     # Step 3: Apply a feed-forward layer on that vector to obtain the label
-    x = layers.Dropout(0.5)(x)  # Dropout after RNN layer
-    predictions = layers.Dense(20, activation="softmax", kernel_regularizer=l2(L2_p), name="predictions")(x)  # 20 output classes (Newsgroups)
+    x = layers.Dropout(0.5)(x)  # Dropout after FC layer
+    predictions = layers.Dense(20, activation="softmax", name="predictions")(x)  # 20 output classes (Newsgroups)
 
     # Build the model
     model = keras.Model(inputs, predictions)
@@ -131,7 +124,7 @@ def build_LSTM():
     # Compile the model with sparse categorical crossentropy and Adam optimizer
     model.compile(
         loss="sparse_categorical_crossentropy", 
-        optimizer=keras.optimizers.Adam(learning_rate=0.0005),  # learning_rate = 0.001
+        optimizer=keras.optimizers.Adam(learning_rate=0.001),  # learning_rate = 0.001
         metrics=["accuracy"]
     )
 
@@ -156,15 +149,14 @@ def main():
 
     model = build_LSTM()
 
-    epochs = 20
+    epochs = 14 # modify based on model
     # Actually perform training.
     model.fit(train_ds, validation_data=val_ds, epochs=epochs)
 
     """
     ## Evaluate the model on the test set or validation set.
     """
-    ## model.evaluate(test_ds)
-    model.evaluate(val_ds)
+    model.evaluate(test_ds)
 
 
 if __name__ == "__main__":
