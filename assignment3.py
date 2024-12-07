@@ -8,7 +8,7 @@ Based largely on:
 """
 
 import os
-
+import sys
 os.environ["KERAS_BACKEND"] = "tensorflow"
 
 import keras
@@ -131,6 +131,15 @@ def build_LSTM():
     return model
 
 def main():
+    if len(sys.argv) != 3:
+        print("Usage: python assignment3.py <param1> <param2>")
+        return
+    modelIn = sys.argv[1]
+    epochIn = sys.argv[2]
+    if not epochIn.isdigit():
+        print("Incorrect usage, Epochs must be a number!")
+    if (modelIn != "LSTM") and (modelIn != "RNN"):
+        print("Incorrect usage, only support for model 'LSTM', and 'RNN'") 
     raw_train_ds, raw_val_ds, raw_test_ds = load_textfiles()
 
     # set the vocabulary!
@@ -146,11 +155,13 @@ def main():
     train_ds = train_ds.cache().prefetch(buffer_size=10)
     val_ds = val_ds.cache().prefetch(buffer_size=10)
     test_ds = test_ds.cache().prefetch(buffer_size=10)
-
-    model = build_LSTM()
-
-    epochs = 14 # modify based on model
+    if modelIn == "LSTM":
+        model = build_LSTM() # modify based on model
+    else:
+        model = build_model()
+    epochs = int(epochIn) # modify based on model
     # Actually perform training.
+    print(f"Training model: {modelIn} for {epochs} epochs")
     model.fit(train_ds, validation_data=val_ds, epochs=epochs)
 
     """
